@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.6.0
+    container_name: toxiproxy
+    command: ["-host=0.0.0.0"]
+    # API по умолчанию на 8474; можно открыть наружу при желании
+    ports:
+      - "8474:8474"   # REST API (опционально наружу для curl с хоста)
+    networks: [bench]
+
+  server:
+    build: .
+    container_name: stub_server
+    entrypoint: ["python","/app/server_stub.py","--host","0.0.0.0","--port","8008"]
+    networks: [bench]
+
+  client:
+    build: .
+    # Клиент смотрит на прокси, а не на сервер
+    entrypoint: ["python","/app/client_stub.py",
+                 "--server_url","http://toxiproxy:8666/process",
+                 "--payload_bytes","2097152",
+                 "--iters","10",
+                 "--log_csv","/logs/CLIENT.csv"]
+    volumes: ["./logs:/logs"]
+    networks: [bench]
+
+networks:
+  bench:
+    driver: bridge
